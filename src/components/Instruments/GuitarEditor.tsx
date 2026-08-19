@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Track, ChordDef, StrokeType } from '../../store/projectStore';
 import { useProjectStore } from '../../store/projectStore';
 import { audioEngine } from '../../engine/AudioEngine';
-import { Play, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Play, Trash2, RefreshCw, Layers, Shuffle } from 'lucide-react';
 import './GuitarEditor.css';
 
 const GUITAR_TYPES = [
@@ -61,20 +61,45 @@ const CHORD_DIAGRAMS: Record<string, (number | 'x')[]> = {
   'Bmaj': ['x', 2, 4, 4, 4, 2], 'Bm': ['x', 2, 4, 4, 3, 2],
 };
 
+const BEAT_LABELS = ['1', '\u0026', '2', '\u0026', '3', '\u0026', '4', '\u0026'];
+const STROKE_DISPLAY: Record<StrokeType, string> = { D: '\u2193', U: '\u2191', R: '\u00B7', A: '\u2193!', M: 'M' };
+const STROKE_ORDER: StrokeType[] = ['D', 'U', 'R', 'A', 'M'];
+
 interface Props { track: Track; }
 
 export function GuitarEditor({ track }: Props) {
-  const { updateGuitarSettings } = useProjectStore();
+  const { updateGuitarSettings, updateChordStrumming } = useProjectStore();
   const gs = track.guitarSettings;
+
+  // -1 = global (no chord selected), >= 0 = editing that chord's strumming
+  const [selectedChordIdx, setSelectedChordIdx] = useState<number>(-1);
   const [selectedPreset, setSelectedPreset] = useState<string>('Pop');
 
   if (!gs) return <div className="no-settings">No guitar settings available</div>;
+
+  // Effective pattern: per-chord if set, otherwise global
+  const effectivePattern = (chordIdx: number): StrokeType[] =>
+    gs.chords[chordIdx]?.strummingPattern ?? gs.strummingPattern;
+
+  // Active pattern being edited in strumming section
+  const isGlobal = selectedChordIdx === -1;
+  const activePattern: StrokeType[] = isGlobal
+    ? gs.strummingPattern
+    : effectivePattern(selectedChordIdx);
+
+  const diagramChord = isGlobal ? gs.chords[0] : gs.chords[selectedChordIdx];
+  const diagramKey = diagramChord
+    ? `${diagramChord.root}${diagramChord.type === '' ? 'maj' : diagramChord.type}`
+    : 'Cmaj';
+  const strings = track.type === 'bass' ? ['E', 'A', 'D', 'G'] : ['E', 'A', 'D', 'G', 'B', 'e'];
+  const fullDiagram = CHORD_DIAGRAMS[diagramKey] ?? [0, 0, 0, 0, 0, 0];
+  const diagram = track.type === 'bass' ? fullDiagram.slice(0, 4) : fullDiagram;
 
   const playChord = async (chord: ChordDef) => {
     const typeKey = chord.type === '' || chord.type === 'maj' ? 'maj' : chord.type;
     const key = `${chord.root}${typeKey}`;
     const notes = CHORD_NOTES[key] ?? ['C3', 'E3', 'G3'];
-    await audioEngine.playChord(notes, '2n', gs.guitarType);
+    await audioEngine.playChord(notes, '2n', gs.guitarType, chord.strummingPattern);
   };
 
   const addChord = (root: string, type: string) => {
@@ -84,7 +109,9 @@ export function GuitarEditor({ track }: Props) {
   };
 
   const removeChord = (index: number) => {
-    updateGuitarSettings(track.id, { chords: gs.chords.filter((_, i) => i !== index) });
+    const newChords = gs.chords.filter((_, i) => i !== index);
+    updateGuitarSettings(track.id, { chords: newChords });
+    if (selectedChordIdx >= newChords.length) setSelectedChordIdx(newChords.length - 1);
   };
 
   const updateChordDuration = (index: number, dur: number) => {
@@ -92,26 +119,38 @@ export function GuitarEditor({ track }: Props) {
     updateGuitarSettings(track.id, { chords });
   };
 
+  const toggleStroke = (strokeIdx: number) => {
+    const pattern = [...activePattern];
+    const current = pattern[strokeIdx];
+    const next = STROKE_ORDER[(STROKE_ORDER.indexOf(current) + 1) % STROKE_ORDER.length];
+    pattern[strokeIdx] = next;
+    if (isGlobal) {
+      updateGuitarSettings(track.id, { strummingPattern: pattern });
+    } else {
+      updateChordStrumming(track.id, selectedChordIdx, pattern);
+    }
+  };
+
   const applyPreset = (preset: string) => {
     setSelectedPreset(preset);
-    updateGuitarSettings(track.id, { strummingPattern: STRUMMING_PRESETS[preset] });
+    const pattern = STRUMMING_PRESETS[preset];
+    if (isGlobal) {
+      updateGuitarSettings(track.id, { strummingPattern: pattern });
+    } else {
+      updateChordStrumming(track.id, selectedChordIdx, [...pattern]);
+    }
   };
 
-  const toggleStroke = (index: number) => {
-    const pattern = [...gs.strummingPattern];
-    const order: StrokeType[] = ['D', 'U', 'R', 'A', 'M'];
-    const current = pattern[index];
-    const next = order[(order.indexOf(current) + 1) % order.length];
-    pattern[index] = next;
-    updateGuitarSettings(track.id, { strummingPattern: pattern });
+  const resetToGlobal = () => {
+    if (!isGlobal) updateChordStrumming(track.id, selectedChordIdx, undefined);
   };
 
-  // Get chord diagram
-  const selectedChord = gs.chords[0];
-  const diagramKey = selectedChord ? `${selectedChord.root}${selectedChord.type === '' ? 'maj' : selectedChord.type}` : 'Cmaj';
-  const strings = track.type === 'bass' ? ['E', 'A', 'D', 'G'] : ['E', 'A', 'D', 'G', 'B', 'e'];
-  const fullDiagram = CHORD_DIAGRAMS[diagramKey] ?? [0, 0, 0, 0, 0, 0];
-  const diagram = track.type === 'bass' ? fullDiagram.slice(0, 4) : fullDiagram;
+  const hasCustomPattern = !isGlobal && !!gs.chords[selectedChordIdx]?.strummingPattern;
+
+  const activeChord = !isGlobal ? gs.chords[selectedChordIdx] : null;
+  const strumSectionTitle = isGlobal
+    ? 'STRUMMING PATTERN â€” Global'
+    : `STRUMMING â€” ${activeChord?.root}${activeChord?.type || 'maj'}${hasCustomPattern ? ' âœ¦ Custom' : ' (global)'}`;
 
   return (
     <div className="guitar-editor">
@@ -149,9 +188,9 @@ export function GuitarEditor({ track }: Props) {
                   <span className="string-label">{s}</span>
                   <div className="fret-dots">
                     {diagram[i] === 'x' ? (
-                      <span className="fret-x">×</span>
+                      <span className="fret-x">Ã—</span>
                     ) : diagram[i] === 0 ? (
-                      <span className="fret-open">○</span>
+                      <span className="fret-open">â—‹</span>
                     ) : (
                       [1, 2, 3, 4].map(fret => (
                         <div key={fret} className={`fret-cell ${diagram[i] === fret ? 'active' : ''}`} />
@@ -169,47 +208,67 @@ export function GuitarEditor({ track }: Props) {
         <section className="guitar-section progression-section">
           <div className="section-title">CHORD PROGRESSION</div>
           <div className="chord-progression">
-            {gs.chords.map((chord, i) => (
-              <div 
-                key={i} 
-                className="chord-chip"
-                draggable
-                onDragStart={(e) => {
-                  if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('select')) {
-                    e.preventDefault();
-                    return;
-                  }
-                  e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: 'chord',
-                    root: chord.root,
-                    chordType: chord.type
-                  }));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                title="Drag chord to timeline track"
-              >
-                <button
-                  className="chord-play"
-                  onClick={() => playChord(chord)}
-                  title="Preview chord"
+            {gs.chords.map((chord, i) => {
+              const hasOwn = !!chord.strummingPattern;
+              const isSelected = selectedChordIdx === i;
+              return (
+                <div
+                  key={i}
+                  className={`chord-chip${isSelected ? ' selected' : ''}${hasOwn ? ' has-custom' : ''}`}
+                  draggable
+                  onClick={() => setSelectedChordIdx(isSelected ? -1 : i)}
+                  title={hasOwn ? 'Custom strumming â€” click to edit' : 'Click to add per-chord strumming'}
+                  onDragStart={(e) => {
+                    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('select')) {
+                      e.preventDefault();
+                      return;
+                    }
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                      type: 'chord',
+                      root: chord.root,
+                      chordType: chord.type,
+                      strummingPattern: chord.strummingPattern
+                    }));
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
                 >
-                  <Play size={9} />
-                </button>
-                <span className="chord-name">{chord.root}{chord.type || 'maj'}</span>
-                <select
-                  className="chord-dur"
-                  value={chord.duration}
-                  onChange={e => updateChordDuration(i, Number(e.target.value))}
-                  title="Duration (beats)"
-                >
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={4}>4</option>
-                  <option value={8}>8</option>
-                </select>
-                <button className="chord-remove" onClick={() => removeChord(i)}><Trash2 size={9} /></button>
-              </div>
-            ))}
+                  <button
+                    className="chord-play"
+                    onClick={(e) => { e.stopPropagation(); playChord(chord); }}
+                    title="Preview chord"
+                  >
+                    <Play size={9} />
+                  </button>
+                  <div className="chord-chip-info">
+                    <span className="chord-name">{chord.root}{chord.type || 'maj'}</span>
+                    {/* Mini strumming preview */}
+                    <div className="chord-strum-mini">
+                      {effectivePattern(i).slice(0, 4).map((s, si) => (
+                        <span key={si} className={`mini-stroke mini-${s.toLowerCase()}`}>
+                          {STROKE_DISPLAY[s]}
+                        </span>
+                      ))}
+                      {hasOwn && <span className="chord-custom-badge">âœ¦</span>}
+                    </div>
+                  </div>
+                  <select
+                    className="chord-dur"
+                    value={chord.duration}
+                    onChange={e => { e.stopPropagation(); updateChordDuration(i, Number(e.target.value)); }}
+                    onClick={e => e.stopPropagation()}
+                    title="Duration (beats)"
+                  >
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={4}>4</option>
+                    <option value={8}>8</option>
+                  </select>
+                  <button className="chord-remove" onClick={(e) => { e.stopPropagation(); removeChord(i); }}>
+                    <Trash2 size={9} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           {/* Chord picker */}
@@ -221,9 +280,7 @@ export function GuitarEditor({ track }: Props) {
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: 'chord',
-                    root: c.root,
-                    chordType: c.type === 'maj' ? '' : c.type
+                    type: 'chord', root: c.root, chordType: c.type === 'maj' ? '' : c.type
                   }));
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
@@ -239,7 +296,41 @@ export function GuitarEditor({ track }: Props) {
 
       {/* Strumming Pattern */}
       <section className="guitar-section strumming-section">
-        <div className="section-title">STRUMMING PATTERN</div>
+        <div className="strumming-section-header">
+          <div className="section-title">{strumSectionTitle}</div>
+          <div className="strumming-section-actions">
+            <button
+              className={`btn${isGlobal ? ' active' : ''}`}
+              style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}
+              onClick={() => setSelectedChordIdx(-1)}
+              title="Edit global strumming pattern"
+            >
+              <Shuffle size={9} /> Global
+            </button>
+            {!isGlobal && (
+              hasCustomPattern ? (
+                <button
+                  className="btn"
+                  title="Reset to global strumming pattern"
+                  onClick={resetToGlobal}
+                  style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}
+                >
+                  <RefreshCw size={9} /> Use Global
+                </button>
+              ) : (
+                <button
+                  className="btn strum-custom-btn"
+                  title="Create a custom strumming for this chord"
+                  onClick={() => updateChordStrumming(track.id, selectedChordIdx, [...gs.strummingPattern])}
+                  style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}
+                >
+                  <Layers size={9} /> Make Custom
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
         <div className="strumming-area">
           {/* Presets */}
           <div className="strum-presets">
@@ -258,45 +349,54 @@ export function GuitarEditor({ track }: Props) {
           {/* Pattern editor */}
           <div className="strum-pattern">
             <div className="strum-beats">
-              {['1', '&', '2', '&', '3', '&', '4', '&'].map((b, i) => (
+              {BEAT_LABELS.map((b, i) => (
                 <span key={i} className="strum-beat-label">{b}</span>
               ))}
             </div>
             <div className="strum-strokes">
-              {gs.strummingPattern.map((stroke, i) => (
+              {activePattern.map((stroke, i) => (
                 <button
                   key={i}
                   className={`strum-btn stroke-${stroke.toLowerCase()}`}
                   onClick={() => toggleStroke(i)}
                   title={`Click to change (current: ${stroke})`}
                 >
-                  {stroke === 'D' ? '↓' : stroke === 'U' ? '↑' : stroke === 'R' ? '·' : stroke === 'A' ? '↓!' : 'M'}
+                  {STROKE_DISPLAY[stroke]}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Parameters */}
-          <div className="strum-params">
-            <div className="control-row">
-              <span className="control-label">HMNZ</span>
-              <input type="range" min={0} max={1} step={0.01} value={gs.humanize}
-                onChange={e => updateGuitarSettings(track.id, { humanize: Number(e.target.value) })} />
-              <span className="control-value">{Math.round(gs.humanize * 100)}%</span>
+          {/* Global params */}
+          {isGlobal && (
+            <div className="strum-params">
+              <div className="control-row">
+                <span className="control-label">HMNZ</span>
+                <input type="range" min={0} max={1} step={0.01} value={gs.humanize}
+                  onChange={e => updateGuitarSettings(track.id, { humanize: Number(e.target.value) })} />
+                <span className="control-value">{Math.round(gs.humanize * 100)}%</span>
+              </div>
+              <div className="control-row">
+                <span className="control-label">SWNG</span>
+                <input type="range" min={0} max={1} step={0.01} value={gs.swing}
+                  onChange={e => updateGuitarSettings(track.id, { swing: Number(e.target.value) })} />
+                <span className="control-value">{Math.round(gs.swing * 100)}%</span>
+              </div>
+              <div className="control-row">
+                <span className="control-label">VEL</span>
+                <input type="range" min={1} max={127} step={1} value={gs.velocity}
+                  onChange={e => updateGuitarSettings(track.id, { velocity: Number(e.target.value) })} />
+                <span className="control-value">{gs.velocity}</span>
+              </div>
             </div>
-            <div className="control-row">
-              <span className="control-label">SWNG</span>
-              <input type="range" min={0} max={1} step={0.01} value={gs.swing}
-                onChange={e => updateGuitarSettings(track.id, { swing: Number(e.target.value) })} />
-              <span className="control-value">{Math.round(gs.swing * 100)}%</span>
+          )}
+
+          {/* Per-chord hint when using global */}
+          {!isGlobal && !hasCustomPattern && (
+            <div className="strum-hint">
+              <span>This chord uses the <strong>global</strong> pattern. Click <em>Make Custom</em> to give it its own strumming.</span>
             </div>
-            <div className="control-row">
-              <span className="control-label">VEL</span>
-              <input type="range" min={1} max={127} step={1} value={gs.velocity}
-                onChange={e => updateGuitarSettings(track.id, { velocity: Number(e.target.value) })} />
-              <span className="control-value">{gs.velocity}</span>
-            </div>
-          </div>
+          )}
         </div>
       </section>
     </div>

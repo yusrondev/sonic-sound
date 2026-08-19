@@ -254,3 +254,93 @@
   gap: 16px;
 }
 .strum-params .control-row { flex: 1; }
+
+/* ── Per-chord strumming ─────────────────────────────────────────── */
+
+.chord-chip {
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.chord-chip:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-panel-2);
+}
+.chord-chip.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.chord-chip.has-custom {
+  border-color: #f59e0b60;
+}
+.chord-chip.selected.has-custom {
+  border-color: var(--accent);
+}
+
+.chord-chip-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 28px;
+}
+
+.chord-strum-mini {
+  display: flex;
+  gap: 1px;
+  align-items: center;
+}
+
+.mini-stroke {
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-muted);
+}
+.mini-stroke.mini-d { color: #4ade80; }
+.mini-stroke.mini-u { color: #60a5fa; }
+.mini-stroke.mini-r { color: var(--text-muted); }
+.mini-stroke.mini-a { color: #fbbf24; }
+.mini-stroke.mini-m { color: #f87171; }
+
+.chord-custom-badge {
+  font-size: 7px;
+  color: #f59e0b;
+  margin-left: 2px;
+}
+
+.strumming-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 6px;
+}
+
+.strumming-section-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.strum-custom-btn {
+  color: #f59e0b !important;
+  border-color: #f59e0b60 !important;
+}
+.strum-custom-btn:hover {
+  background: #f59e0b20 !important;
+}
+
+.strum-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 6px;
+  background: var(--bg-panel-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  line-height: 1.4;
+}
+.strum-hint strong { color: var(--text-secondary); }
+.strum-hint em { color: #f59e0b; font-style: normal; }
+

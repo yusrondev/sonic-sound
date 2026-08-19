@@ -27,6 +27,7 @@ export interface ChordDef {
   root: string;
   type: string;
   duration: number; // in beats
+  strummingPattern?: StrokeType[]; // per-chord override; undefined = use global pattern
 }
 
 export interface DrumPattern {
@@ -69,7 +70,7 @@ export interface Clip {
   locked: boolean;
   muted: boolean;
   color?: string;
-  chord?: { root: string; type: string };
+  chord?: { root: string; type: string; strummingPattern?: StrokeType[] };
 }
 
 export interface Track {
@@ -313,6 +314,7 @@ interface ProjectStore extends ProjectState {
 
   // Guitar
   updateGuitarSettings: (trackId: string, settings: Partial<GuitarSettings>) => void;
+  updateChordStrumming: (trackId: string, chordIndex: number, pattern: StrokeType[] | undefined) => void;
 
   // Drum
   updateDrumPattern: (trackId: string, pattern: Partial<DrumPattern>) => void;
@@ -496,6 +498,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     tracks: s.tracks.map(t => t.id === trackId && t.guitarSettings
       ? { ...t, guitarSettings: { ...t.guitarSettings, ...settings } }
       : t)
+  })),
+
+  updateChordStrumming: (trackId, chordIndex, pattern) => set(s => ({
+    tracks: s.tracks.map(t => {
+      if (t.id !== trackId || !t.guitarSettings) return t;
+      const chords = t.guitarSettings.chords.map((c, i) =>
+        i === chordIndex ? { ...c, strummingPattern: pattern } : c
+      );
+      return { ...t, guitarSettings: { ...t.guitarSettings, chords } };
+    })
   })),
 
   updateDrumPattern: (trackId, pattern) => set(s => ({

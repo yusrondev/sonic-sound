@@ -525,45 +525,25 @@ class AudioEngine {
         // 3. Guitar & Bass
         if ((track.type === 'guitar' || track.type === 'bass') && track.guitarSettings) {
           const gs = track.guitarSettings;
-          const strumLenBeats = 4;
           const strokeStep = 0.5;
 
-          gs.strummingPattern.forEach((stroke, stepIdx) => {
-            if (stroke === 'R') return; // rest
+          if (clip.chord) {
+            const pattern = clip.chord.strummingPattern ?? gs.strummingPattern;
+            const patternLenBeats = pattern.length * strokeStep;
 
-            const relativeStrumBeat = stepIdx * strokeStep;
-            const minLoopIdx = Math.floor((clipLeft - clip.startBeat - relativeStrumBeat) / strumLenBeats);
-            const maxLoopIdx = Math.ceil((clipRight - clip.startBeat - relativeStrumBeat) / strumLenBeats);
+            const minPatternLoopIdx = Math.floor((clipLeft - clip.startBeat) / patternLenBeats);
+            const maxPatternLoopIdx = Math.ceil((clipRight - clip.startBeat) / patternLenBeats);
 
-            for (let idx = Math.max(0, minLoopIdx); idx <= maxLoopIdx; idx++) {
-              const absBeat = clip.startBeat + idx * strumLenBeats + relativeStrumBeat;
-              if (absBeat >= clipLeft && absBeat < clipRight) {
-                // Determine active chord in progression
-                let activeChord: { root: string; type: string } | null = clip.chord
-                  ? { root: clip.chord.root, type: clip.chord.type }
-                  : null;
+            for (let patIdx = Math.max(0, minPatternLoopIdx); patIdx <= maxPatternLoopIdx; patIdx++) {
+              const patStartBeat = clip.startBeat + patIdx * patternLenBeats;
 
-                if (!activeChord) {
-                  const progressionBeats = gs.chords.reduce((acc, c) => acc + c.duration, 0) || 16;
-                  const relativeBeatInProgression = (absBeat - clip.startBeat) % progressionBeats;
-                  
-                  let accum = 0;
-                  let rawChord = gs.chords[0];
-                  for (const c of gs.chords) {
-                    accum += c.duration;
-                    if (relativeBeatInProgression < accum) {
-                      rawChord = c;
-                      break;
-                    }
-                  }
-                  if (rawChord) {
-                    activeChord = { root: rawChord.root, type: rawChord.type === '' ? 'maj' : rawChord.type };
-                  }
-                }
+              pattern.forEach((stroke, stepIdx) => {
+                if (stroke === 'R') return; // rest
 
-                if (activeChord) {
-                  const type = activeChord.type === '' ? 'maj' : activeChord.type;
-                  const key = `${activeChord.root}${type}`;
+                const absBeat = patStartBeat + stepIdx * strokeStep;
+                if (absBeat >= clipLeft && absBeat < clipRight) {
+                  const type = clip.chord!.type === '' ? 'maj' : clip.chord!.type;
+                  const key = `${clip.chord!.root}${type}`;
                   let notes = CHORD_NOTES[key] ?? ['C3', 'E3', 'G3'];
                   if (track.type === 'bass') {
                     notes = shiftNotesOctave(notes, -2);
@@ -573,9 +553,57 @@ class AudioEngine {
                     this.triggerStrum(nodes.instrument, notes, time, stroke, gs);
                   }
                 }
-              }
+              });
             }
-          });
+          } else {
+            const progressionBeats = gs.chords.reduce((acc, c) => acc + c.duration, 0) || 16;
+            
+            const minProgressionLoopIdx = Math.floor((clipLeft - clip.startBeat) / progressionBeats);
+            const maxProgressionLoopIdx = Math.ceil((clipRight - clip.startBeat) / progressionBeats);
+
+            for (let loopIdx = Math.max(0, minProgressionLoopIdx); loopIdx <= maxProgressionLoopIdx; loopIdx++) {
+              const loopStartBeat = clip.startBeat + loopIdx * progressionBeats;
+              
+              let accumulatedDuration = 0;
+              gs.chords.forEach((c) => {
+                const chordStartBeat = loopStartBeat + accumulatedDuration;
+                const chordEndBeat = chordStartBeat + c.duration;
+                accumulatedDuration += c.duration;
+
+                const chordLeft = Math.max(clipLeft, chordStartBeat);
+                const chordRight = Math.min(clipRight, chordEndBeat);
+                if (chordLeft >= chordRight) return;
+
+                const pattern = c.strummingPattern ?? gs.strummingPattern;
+                const patternLenBeats = pattern.length * strokeStep;
+
+                const minPatternLoopIdx = Math.floor((chordLeft - chordStartBeat) / patternLenBeats);
+                const maxPatternLoopIdx = Math.ceil((chordRight - chordStartBeat) / patternLenBeats);
+
+                for (let patIdx = Math.max(0, minPatternLoopIdx); patIdx <= maxPatternLoopIdx; patIdx++) {
+                  const patStartBeat = chordStartBeat + patIdx * patternLenBeats;
+
+                  pattern.forEach((stroke, stepIdx) => {
+                    if (stroke === 'R') return; // rest
+
+                    const absBeat = patStartBeat + stepIdx * strokeStep;
+                    if (absBeat >= chordLeft && absBeat < chordRight) {
+                      const type = c.type === '' ? 'maj' : c.type;
+                      const key = `${c.root}${type}`;
+                      let notes = CHORD_NOTES[key] ?? ['C3', 'E3', 'G3'];
+                      if (track.type === 'bass') {
+                        notes = shiftNotesOctave(notes, -2);
+                      }
+                      const time = this.startTime + (absBeat - this.startBeat) / (this.bpm / 60);
+                      if (this.ctx && time >= this.ctx.currentTime && nodes.instrument) {
+                        this.triggerStrum(nodes.instrument, notes, time, stroke, gs);
+                      }
+                    }
+                  });
+                }
+              });
+            }
+          }
         }
       });
     });
@@ -746,7 +774,7 @@ class AudioEngine {
   }
 
   // Tone.js instrument playback helpers
-  async playChord(notes: string[], duration: string = '2n', guitarType: string = 'acoustic') {
+  async playChord(notes: string[], duration: string = '2n', guitarType: string = 'acoustic', strummingPattern?: any[]) {
     await Tone.start();
     const selectedTrackId = useUIStore.getState().selectedTrackId;
     if (!selectedTrackId) return;
@@ -761,7 +789,11 @@ class AudioEngine {
           if (track.type === 'bass') {
             notesToPlay = shiftNotesOctave(notes, -2);
           }
-          this.playStrumPattern(nodes.instrument, notesToPlay, track.guitarSettings);
+          const gs = {
+            ...track.guitarSettings,
+            strummingPattern: strummingPattern ?? track.guitarSettings.strummingPattern
+          };
+          this.playStrumPattern(nodes.instrument, notesToPlay, gs);
         } else {
           nodes.instrument.triggerAttackRelease(notes, duration);
         }

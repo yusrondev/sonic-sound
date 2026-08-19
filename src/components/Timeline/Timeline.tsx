@@ -506,7 +506,11 @@ export function Timeline() {
             fadeIn: 0,
             fadeOut: 0,
             gain: 1,
-            chord: { root: data.root, type: data.chordType }
+            chord: {
+              root: data.root,
+              type: data.chordType,
+              strummingPattern: data.strummingPattern
+            }
           });
         }
       }
