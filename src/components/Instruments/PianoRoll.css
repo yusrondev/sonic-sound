@@ -1,0 +1,56 @@
+.piano-roll {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.piano-keyboard {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.piano-key {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: filter var(--t-fast);
+  position: relative;
+  flex-shrink: 0;
+}
+.piano-key:hover { filter: brightness(1.3); }
+.piano-key-white { background: #d8dae0; border-bottom: 1px solid #b0b4c0; }
+.piano-key-black { background: #1a1c22; border-bottom: 1px solid #0a0b0d; }
+
+.key-label {
+  font-size: 6px;
+  color: #555;
+  position: absolute;
+  right: 2px;
+  font-family: var(--font-mono);
+}
+.piano-key-black .key-label { display: none; }
+
+.piano-canvas-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.piano-roll-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.no-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

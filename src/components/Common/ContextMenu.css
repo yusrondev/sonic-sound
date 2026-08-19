@@ -1,0 +1,31 @@
+.context-menu {
+  position: fixed;
+  min-width: 180px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 9998;
+  padding: 3px;
+  animation: slide-in-bottom 80ms ease;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--t-fast);
+}
+.context-menu-item:hover { background: var(--bg-panel-2); }
+.context-menu-item:disabled { color: var(--text-muted); cursor: default; }
+.context-menu-item:disabled:hover { background: none; }

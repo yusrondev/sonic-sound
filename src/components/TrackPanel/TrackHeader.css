@@ -1,0 +1,106 @@
+.track-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 8px 4px 6px;
+  background: var(--bg-track);
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  position: relative;
+  gap: 2px;
+}
+
+.track-header:hover {
+  background: var(--bg-track-hover);
+}
+
+.track-header.selected {
+  background: var(--bg-selected);
+}
+
+.track-header.muted {
+  opacity: 0.5;
+}
+
+.track-top-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.track-type-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.track-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.track-delete {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--t-fast);
+  flex-shrink: 0;
+}
+.track-header:hover .track-delete { opacity: 1; }
+.track-delete:hover { color: var(--record); background: var(--record-dim); }
+
+.track-mid-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.track-btn {
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-panel-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--t-fast);
+  letter-spacing: 0;
+}
+.track-btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.track-btn.active-mute { background: var(--yellow); color: #000; border-color: var(--yellow-bright); }
+.track-btn.active-solo { background: var(--accent); color: #fff; border-color: var(--accent-hover); }
+.track-btn.active-arm { background: var(--record); color: #fff; border-color: var(--record-hover); animation: pulse-record 1s ease infinite; }
+
+.track-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px;
+}
+
+.track-slider {
+  flex: 1;
+  height: 14px;
+}
+
+.vol-slider::-webkit-slider-thumb { background: #4ade80; }
+.pan-slider::-webkit-slider-thumb { background: #60a5fa; }

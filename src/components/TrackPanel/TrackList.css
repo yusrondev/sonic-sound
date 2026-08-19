@@ -1,0 +1,101 @@
+.track-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-panel);
+}
+
+.track-list-header {
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 10px;
+  height: 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-toolbar);
+  flex-shrink: 0;
+}
+
+.add-track-wrapper {
+  position: relative;
+}
+
+.add-track-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-modal);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  padding: 4px;
+  min-width: 140px;
+  animation: slide-in-bottom 100ms ease;
+}
+
+.add-track-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--t-fast);
+}
+.add-track-item:hover { background: var(--bg-panel-2); }
+
+.add-track-icon {
+  width: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.track-list-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.empty-tracks {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.empty-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.empty-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.empty-quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.quick-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: var(--bg-panel-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.quick-add-btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
