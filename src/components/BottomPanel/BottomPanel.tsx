@@ -56,16 +56,19 @@ export function BottomPanel() {
       <div className="bottom-panel-tabs">
         {/* Tabs */}
         <div className="tabs-row">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              className={`bottom-tab ${bottomTab === tab.id ? 'active' : ''}`}
-              onClick={() => setBottomTab(tab.id)}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
+          {TABS.map(tab => {
+            const isBass = tab.id === 'guitar' && selectedTrack?.type === 'bass';
+            return (
+              <button
+                key={tab.id}
+                className={`bottom-tab ${bottomTab === tab.id ? 'active' : ''}`}
+                onClick={() => setBottomTab(tab.id)}
+              >
+                {tab.icon}
+                <span>{isBass ? 'Bass' : tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="bottom-toolbar-sep" />

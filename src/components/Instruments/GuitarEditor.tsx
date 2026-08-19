@@ -109,29 +109,32 @@ export function GuitarEditor({ track }: Props) {
   // Get chord diagram
   const selectedChord = gs.chords[0];
   const diagramKey = selectedChord ? `${selectedChord.root}${selectedChord.type === '' ? 'maj' : selectedChord.type}` : 'Cmaj';
-  const diagram = CHORD_DIAGRAMS[diagramKey] ?? [0, 0, 0, 0, 0, 0];
-  const strings = ['E', 'A', 'D', 'G', 'B', 'e'];
+  const strings = track.type === 'bass' ? ['E', 'A', 'D', 'G'] : ['E', 'A', 'D', 'G', 'B', 'e'];
+  const fullDiagram = CHORD_DIAGRAMS[diagramKey] ?? [0, 0, 0, 0, 0, 0];
+  const diagram = track.type === 'bass' ? fullDiagram.slice(0, 4) : fullDiagram;
 
   return (
     <div className="guitar-editor">
-      {/* Guitar Type */}
-      <section className="guitar-section">
-        <div className="section-title">GUITAR TYPE</div>
-        <div className="guitar-types">
-          {GUITAR_TYPES.map(t => (
-            <button
-              key={t.value}
-              className={`guitar-type-btn ${gs.guitarType === t.value ? 'active' : ''}`}
-              onClick={() => {
-                updateGuitarSettings(track.id, { guitarType: t.value as any });
-                audioEngine.reinitializeInstrument(track.id);
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* Guitar Type Selection (hidden for bass) */}
+      {track.type !== 'bass' && (
+        <section className="guitar-section">
+          <div className="section-title">GUITAR TYPE</div>
+          <div className="guitar-types">
+            {GUITAR_TYPES.map(t => (
+              <button
+                key={t.value}
+                className={`guitar-type-btn ${gs.guitarType === t.value ? 'active' : ''}`}
+                onClick={() => {
+                  updateGuitarSettings(track.id, { guitarType: t.value as any });
+                  audioEngine.reinitializeInstrument(track.id);
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Chord Diagram + Progression */}
       <div className="guitar-main">
